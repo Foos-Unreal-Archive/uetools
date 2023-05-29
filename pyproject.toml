@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "uetools"
+version = "0.1.0"
+description = "A collection of tools for Unreal Engine 5"
+authors = ["LaurentOngaro <laurent@gameamea.com>"]
+license = "GPL3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
