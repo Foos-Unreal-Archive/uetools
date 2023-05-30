@@ -34,13 +34,16 @@ class PluginsBuildIdFixer(tk.Toplevel):
         self.build_id = ''
         self.result = ''
         self.display_callback = display_callback
-        self.entry_engine_folder = None
-        self.entry_plugins_folder = None
         self.error_list = []
         self.title('Update Plugins')
         self.resizable(False, False)
         self.geometry(f'{self.width}x{self.height}')
 
+        # Initialize StringVar variables for managing Entry widgets
+        self.engine_folder_var = tk.StringVar()
+        self.plugins_folder_var = tk.StringVar()
+        self.plugins_folder_var.trace_add("write", lambda *args: self.config.set('plugins_folder', self.plugins_folder_var.get()))
+        self.engine_folder_var.trace_add("write", lambda *args: self.config.set('engine_folder', self.engine_folder_var.get()))
         self.create_widgets()
         self.bind('<Key>', self.on_key)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -77,43 +80,41 @@ class PluginsBuildIdFixer(tk.Toplevel):
         frm_button.pack(fill=tk.X, **pack_def_options)
 
         # noinspection DuplicatedCode
-        self.entry_engine_folder = ttk.Entry(frm_engine)
-        self.entry_engine_folder.pack(side=tk.LEFT, fill=tk.X, expand=True, **pack_def_options)
+        entry_engine_folder = ttk.Entry(frm_engine, textvariable=self.engine_folder_var)
+        entry_engine_folder.pack(side=tk.LEFT, fill=tk.X, expand=True, **pack_def_options)
         btn_engine_folder = ttk.Button(frm_engine, text='Browse', command=self._browse_engine_folder)
         btn_engine_folder.pack(side=tk.LEFT, **pack_def_options)
 
         # noinspection DuplicatedCode
-        self.entry_plugins_folder = ttk.Entry(frm_plugins)
-        self.entry_plugins_folder.pack(side=tk.LEFT, fill=tk.X, expand=True, **pack_def_options)
+        entry_plugins_folder = ttk.Entry(frm_plugins, textvariable=self.plugins_folder_var)
+        entry_plugins_folder.pack(side=tk.LEFT, fill=tk.X, expand=True, **pack_def_options)
         btn_plugins_folder = ttk.Button(frm_plugins, text='Browse', command=self._browse_plugins_folder)
         btn_plugins_folder.pack(side=tk.LEFT, **pack_def_options)
 
         btn_update = ttk.Button(frm_button, text='Update Plugin Files', command=self.fix_build_id)
         btn_update.pack(**pack_def_options)
 
-        self._update_paths()
+        self._update_path_entries()
 
-    def _update_paths(self):
+    def _update_path_entries(self):
         """
         Update the paths in the configuration file.
         :return:
         """
-        self.entry_engine_folder.delete(0, tk.END)
-        self.entry_engine_folder.insert(0, self.config.get('engine_folder'))
-        self.entry_plugins_folder.delete(0, tk.END)
-        self.entry_plugins_folder.insert(0, self.config.get('plugins_folder'))
+        self.engine_folder_var.set(self.config.get('engine_folder'))
+        self.plugins_folder_var.set(self.config.get('plugins_folder'))
 
     def _browse_engine_folder(self):
         path = browse_folder()
         if os.path.isdir(path):
             self.config.set('engine_folder', path)
-            self._update_paths()
+            self.engine_folder_var.set(path)
 
     def _browse_plugins_folder(self):
         path = browse_folder()
         if os.path.isdir(path):
             self.config.set('plugins_folder', path)
-            self._update_paths()
+            self.plugins_folder_var.set(path)
 
     def _extract_build_id(self) -> str:
         """
@@ -208,6 +209,7 @@ class PluginsBuildIdFixer(tk.Toplevel):
         """
         Close the window
         """
+        self.config.save()
         self.destroy()
 
     def log(self, message: str) -> None:
