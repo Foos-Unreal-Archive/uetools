@@ -21,10 +21,6 @@ class PluginsBuildIdFixer(tk.Toplevel):
     """
 
     def __init__(self, master, display_callback=None):
-        """
-        Initialize the PluginsBuildIdFixer window with widgets.
-        :param master: The parent window.
-        """
         super().__init__(master)
         self.name = 'PluginsBuildIdFixer'
         self.description = 'Update plugin files with the Custom Engine Build ID. Read the Build ID for a given engine folder and update the plugin files in the given plugins folder.'
@@ -32,15 +28,17 @@ class PluginsBuildIdFixer(tk.Toplevel):
         self.height = 270
         self.config_file, self.config = self.init_config(self.name)
         self.build_id = ''
-        self.result = ''
+        self.result = f'\n###########\nRUNNING {self.name}\n###########\n'
         self.display_callback = display_callback
         self.error_list = []
+        self.plugin_list = []
 
         self.title('Update Plugins')
         self.resizable(False, False)
         self.geometry(f'{self.width}x{self.height}')
 
         # Initialize StringVar variables for managing Entry widgets
+        self.btn_execute = None
         self.engine_folder_var = tk.StringVar()
         self.plugins_folder_var = tk.StringVar()
         self.plugins_folder_var.trace_add("write", lambda *args: self.config.set('plugins_folder', self.plugins_folder_var.get()))
@@ -71,36 +69,38 @@ class PluginsBuildIdFixer(tk.Toplevel):
         """
         pack_def_options = {'ipadx': 5, 'ipady': 5, 'padx': 3, 'pady': 3}
         lbl_description = ttk.Label(self, text=self.description, wraplength=int(self.width * .9), font='TkDefaultFont 9 bold')
-        frm_engine = tk.LabelFrame(self, text='Engine Binary Folder (source of the Build ID)')
-        frm_plugins = tk.LabelFrame(self, text='Marketplace Plugins Folder (Build ID updates)')
-        frm_button = tk.LabelFrame(self, text='Commands')
+        lblf_source_folder = tk.LabelFrame(self, text='Engine Binary Folder (source of the Build ID)')
+        lblf_plugins_folder = tk.LabelFrame(self, text='Marketplace Plugins Folder (Build ID updates)')
+        lblf_bottom = tk.LabelFrame(self, text='Commands')
 
         lbl_description.pack(fill=tk.X, **pack_def_options)
-        frm_engine.pack(fill=tk.X, **pack_def_options)
-        frm_plugins.pack(fill=tk.X, **pack_def_options)
-        frm_button.pack(fill=tk.X, **pack_def_options)
+        lblf_source_folder.pack(fill=tk.X, **pack_def_options)
+        lblf_plugins_folder.pack(fill=tk.X, **pack_def_options)
+        lblf_bottom.pack(fill=tk.X, **pack_def_options)
 
         # noinspection DuplicatedCode
-        entry_engine_folder = ttk.Entry(frm_engine, textvariable=self.engine_folder_var)
+        entry_engine_folder = ttk.Entry(lblf_source_folder, textvariable=self.engine_folder_var)
         entry_engine_folder.pack(side=tk.LEFT, fill=tk.X, expand=True, **pack_def_options)
-        btn_engine_folder = ttk.Button(frm_engine, text='Browse', command=self._browse_engine_folder)
+        btn_engine_folder = ttk.Button(lblf_source_folder, text='Browse', command=self._browse_engine_folder)
         btn_engine_folder.pack(side=tk.LEFT, **pack_def_options)
 
         # noinspection DuplicatedCode
-        entry_plugins_folder = ttk.Entry(frm_plugins, textvariable=self.plugins_folder_var)
+        entry_plugins_folder = ttk.Entry(lblf_plugins_folder, textvariable=self.plugins_folder_var)
         entry_plugins_folder.pack(side=tk.LEFT, fill=tk.X, expand=True, **pack_def_options)
-        btn_plugins_folder = ttk.Button(frm_plugins, text='Browse', command=self._browse_plugins_folder)
+        btn_plugins_folder = ttk.Button(lblf_plugins_folder, text='Browse', command=self._browse_plugins_folder)
         btn_plugins_folder.pack(side=tk.LEFT, **pack_def_options)
 
-        btn_update = ttk.Button(frm_button, text='Update Plugin Files', command=self.fix_build_id)
-        btn_update.pack(**pack_def_options)
+        # noinspection DuplicatedCode
+        ttk.Button(lblf_bottom, text='Close', command=self.close_window).pack(**pack_def_options, side=tk.RIGHT)
+        ttk.Button(lblf_bottom, text='Find Plugins', command=self.find, state=tk.NORMAL).pack(side=tk.LEFT, **pack_def_options)
+        self.btn_execute = ttk.Button(lblf_bottom, text='Update Plugin Files', command=self.execute, state=tk.DISABLED)
+        self.btn_execute.pack(**pack_def_options)
 
-        self._update_path_entries()
+        self._update_widgets_from_config()
 
-    def _update_path_entries(self):
+    def _update_widgets_from_config(self):
         """
-        Update the paths in the configuration file.
-        :return:
+        Update the widgets with the configuration file values.
         """
         self.engine_folder_var.set(self.config.get('engine_folder'))
         self.plugins_folder_var.set(self.config.get('plugins_folder'))
@@ -221,19 +221,37 @@ class PluginsBuildIdFixer(tk.Toplevel):
         print(f'[{self.__class__.__name__}] {message}')
         self.error_list.append(message)
 
-    def fix_build_id(self) -> None:
+    def find(self) -> None:
         """
-        Update plugin files in the specified engine_folder and plugins_folder.
+        Find the plugins to update.
         """
         if self.config.get('engine_folder') == '' or self.config.get('plugins_folder') == '':
             messagebox.showerror('Error', 'Engine Path or Plugins Directory not specified.')
             return
+
+        self.plugin_list = self._find_plugins()
+        count = len(self.plugin_list)
+        messagebox.showinfo('Command Result', f'Found {count} Plugins to update.')
+        if count > 0:
+            self.btn_execute.config(state=tk.NORMAL)
+        else:
+            self.btn_execute.config(state=tk.DISABLED)
+
+    def execute(self) -> None:
+        """
+        Execute the main command for that window.
+        """
+        if len(self.plugin_list) < 1:
+            messagebox.showerror('Error', 'The list of plugins to update is empty.')
+            return
+
         build_id = self._extract_build_id()
         if build_id:
             self._fix_build_id_in_plugins()
             messagebox.showinfo('Command Result', 'Plugin files updated successfully.')
         else:
             messagebox.showerror('Error', 'Failed to extract Custom Engine Build ID from the specified file.')
+
         self.config.save()
         if len(self.error_list) > 0:
             self.result += '\n###########\nErrors\n###########\n'

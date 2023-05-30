@@ -7,6 +7,7 @@ from tkinter import ttk
 from tkinter.filedialog import asksaveasfilename
 from tkinter.messagebox import showinfo
 
+from modules.FolderCleanerClass import FolderCleaner
 from modules.functions import make_modal
 from modules.PluginVersionFixerClass import PluginsBuildIdFixer
 
@@ -21,7 +22,7 @@ class UETools(tk.Tk):
         self.text_content = None
         self.keep_existing = False
         self.width = 500
-        self.height = 270
+        self.height = 500
         self.file_types = (('csv file', '*.csv'), ('tcsv file', '*.tcsv'), ('json file', '*.json'), ('text file', '*.txt'))
 
         self.title('UE Tools')
@@ -38,19 +39,21 @@ class UETools(tk.Tk):
         """
         pack_def_options = {'ipadx': 5, 'ipady': 5, 'padx': 3, 'pady': 3}
         lblf_top = tk.LabelFrame(self, text='Run Commands')
-        lblf_center = tk.LabelFrame(self, text='Results')
+        lblf_content = tk.LabelFrame(self, text='Results')
         lblf_bottom = tk.LabelFrame(self)
 
         lblf_top.pack(side=tk.TOP, fill=tk.X, **pack_def_options)
-        lblf_center.pack(fill=tk.X, **pack_def_options)
+        lblf_content.pack(fill=tk.X, **pack_def_options)
         lblf_bottom.pack(side=tk.BOTTOM, fill=tk.X, **pack_def_options)
 
-        btn_update = ttk.Button(lblf_top, text='Fix BuildId in Plugins', command=self.run_plugins_fix_build_id)
-        btn_update.pack(side=tk.LEFT, **pack_def_options)
+        btn_plugins_fix_build_id = ttk.Button(lblf_top, text='Fix BuildId in Plugins', command=self.run_plugins_fix_build_id)
+        btn_plugins_fix_build_id.pack(side=tk.LEFT, **pack_def_options)
+        btn_folder_cleaner = ttk.Button(lblf_top, text='Clean projects folder', command=self.run_folder_cleaner)
+        btn_folder_cleaner.pack(side=tk.LEFT, **pack_def_options)
 
         pack_def_options = {'ipadx': 3, 'ipady': 3}
-        text_content = tk.Text(lblf_center, font=('Verdana', 8))
-        scrollbar_y = ttk.Scrollbar(lblf_center)
+        text_content = tk.Text(lblf_content, font=('Verdana', 8))
+        scrollbar_y = ttk.Scrollbar(lblf_content)
         scrollbar_y.config(command=text_content.yview)
         text_content.config(yscrollcommand=scrollbar_y.set)
         scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y, **pack_def_options)
@@ -122,6 +125,13 @@ class UETools(tk.Tk):
         Open the Update Plugin Files window.
         """
         toplevel = PluginsBuildIdFixer(self, display_callback=self.display)
+        make_modal(tk_root=self, tk_child=toplevel)
+
+    def run_folder_cleaner(self) -> None:
+        """
+        Open the Folder Cleaner window.
+        """
+        toplevel = FolderCleaner(self, display_callback=self.display)
         make_modal(tk_root=self, tk_child=toplevel)
 
     def close_app(self) -> None:
