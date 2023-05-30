@@ -1,17 +1,19 @@
 # coding=utf-8
 """
 Implementation for:
-- PluginsTool: A window to update plugin files with the Custom Engine Build ID.
+- PluginsBuildIdFixer: A window to update plugin files with the Custom Engine Build ID.
 """
-import configparser
 import json
 import os
 import tkinter as tk
 from tkinter import ttk, messagebox as messagebox
-from modules.functions import browse_folder, log
+
+from modules.ToolConfigClass import ToolConfig
+from modules.functions import browse_folder
+from modules.globals import default_engine_folder, config_folder, config_filename
 
 
-class PluginsTool(tk.Toplevel):
+class PluginsBuildIdFixer(tk.Toplevel):
     """
     A window to update plugin files with the Custom Engine Build ID.
     :param master: The parent window.
@@ -20,44 +22,67 @@ class PluginsTool(tk.Toplevel):
 
     def __init__(self, master, display_callback=None):
         """
-        Initialize the PluginsTool window with widgets.
+        Initialize the PluginsBuildIdFixer window with widgets.
         :param master: The parent window.
         """
         super().__init__(master)
-        self.config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
-        self.conf = {'engine_folder': '', 'plugins_folder': ''}
+        self.name = 'PluginsBuildIdFixer'
+        self.description = 'Update plugin files with the Custom Engine Build ID. Read the Build ID for a given engine folder and update the plugin files in the given plugins folder.'
+        self.width = 500
+        self.height = 270
+        self.config_file, self.config = self.init_config(self.name)
         self.build_id = ''
         self.result = ''
         self.display_callback = display_callback
         self.entry_engine_folder = None
         self.entry_plugins_folder = None
+        self.error_list = []
         self.title('Update Plugins')
         self.resizable(False, False)
-        self.geometry('500x220')
+        self.geometry(f'{self.width}x{self.height}')
+
         self.create_widgets()
         self.bind('<Key>', self.on_key)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.grab_set()  # Captures keyboard events in the Toplevel window
+
+    @staticmethod
+    def init_config(section: str) -> tuple[str, ToolConfig]:
+        """
+        Initialize the config file and default value for this window.
+        :return: The config file name and config object.
+        """
+        defaults = {
+            'engine_folder': default_engine_folder,  #
+            'plugins_folder': os.path.join(default_engine_folder, 'Plugins/Marketplace'),  #
+        }
+        config_file = os.path.join(os.path.join(config_folder, config_filename))
+        config = ToolConfig(init_values=defaults, section=section)
+        config.load()
+        return config_file, config
 
     def create_widgets(self):
         """
         Create the widgets for the window.
         """
         pack_def_options = {'ipadx': 5, 'ipady': 5, 'padx': 3, 'pady': 3}
-
-        frm_engine = tk.LabelFrame(self, text='Engine Path')
-        frm_plugins = tk.LabelFrame(self, text='Marketplace Plugins Folder')
+        lbl_description = ttk.Label(self, text=self.description, wraplength=int(self.width * .9), font='TkDefaultFont 9 bold')
+        frm_engine = tk.LabelFrame(self, text='Engine Binary Folder (source of the Build ID)')
+        frm_plugins = tk.LabelFrame(self, text='Marketplace Plugins Folder (Build ID updates)')
         frm_button = tk.LabelFrame(self, text='Commands')
 
+        lbl_description.pack(fill=tk.X, **pack_def_options)
         frm_engine.pack(fill=tk.X, **pack_def_options)
         frm_plugins.pack(fill=tk.X, **pack_def_options)
         frm_button.pack(fill=tk.X, **pack_def_options)
 
+        # noinspection DuplicatedCode
         self.entry_engine_folder = ttk.Entry(frm_engine)
         self.entry_engine_folder.pack(side=tk.LEFT, fill=tk.X, expand=True, **pack_def_options)
         btn_engine_folder = ttk.Button(frm_engine, text='Browse', command=self._browse_engine_folder)
         btn_engine_folder.pack(side=tk.LEFT, **pack_def_options)
 
+        # noinspection DuplicatedCode
         self.entry_plugins_folder = ttk.Entry(frm_plugins)
         self.entry_plugins_folder.pack(side=tk.LEFT, fill=tk.X, expand=True, **pack_def_options)
         btn_plugins_folder = ttk.Button(frm_plugins, text='Browse', command=self._browse_plugins_folder)
@@ -66,7 +91,6 @@ class PluginsTool(tk.Toplevel):
         btn_update = ttk.Button(frm_button, text='Update Plugin Files', command=self.fix_build_id)
         btn_update.pack(**pack_def_options)
 
-        self.load_configuration()
         self._update_paths()
 
     def _update_paths(self):
@@ -75,27 +99,27 @@ class PluginsTool(tk.Toplevel):
         :return:
         """
         self.entry_engine_folder.delete(0, tk.END)
-        self.entry_engine_folder.insert(0, self.conf['engine_folder'])
+        self.entry_engine_folder.insert(0, self.config.get('engine_folder'))
         self.entry_plugins_folder.delete(0, tk.END)
-        self.entry_plugins_folder.insert(0, self.conf['plugins_folder'])
+        self.entry_plugins_folder.insert(0, self.config.get('plugins_folder'))
 
     def _browse_engine_folder(self):
         path = browse_folder()
         if os.path.isdir(path):
-            self.conf['engine_folder'] = path
+            self.config.set('engine_folder', path)
             self._update_paths()
 
     def _browse_plugins_folder(self):
         path = browse_folder()
         if os.path.isdir(path):
-            self.conf['plugins_folder'] = path
+            self.config.set('plugins_folder', path)
             self._update_paths()
 
     def _extract_build_id(self) -> str:
         """
         Extract Custom Engine Build ID from the paper2D plugin from the specified engine path.
         """
-        paper_plugin_path = os.path.join(self.conf['engine_folder'], 'Plugins', '2D', 'Paper2D', 'Binaries', 'Win64', 'UnrealEditor.modules')
+        paper_plugin_path = os.path.join(self.config.get('engine_folder'), 'Plugins', '2D', 'Paper2D', 'Binaries', 'Win64', 'UnrealEditor.modules')
         paper_plugin_path = os.path.abspath(paper_plugin_path)
         try:
             with open(paper_plugin_path, 'r') as file:
@@ -103,6 +127,7 @@ class PluginsTool(tk.Toplevel):
                 build_id = data['BuildId']
             return build_id
         except FileNotFoundError:
+            self.log(f'Could not find the the plugin we read build_id from ({paper_plugin_path}).\nThe engine path is probably wrong.')
             return ''
 
     def _replace_build_id(self, json_file: str) -> bool:
@@ -119,9 +144,9 @@ class PluginsTool(tk.Toplevel):
                 json.dump(data, file, indent=4)
             return True
         except FileNotFoundError:
-            log(f'File not found: {json_file}')
+            self.log(f'File not found: {json_file}')
         except json.decoder.JSONDecodeError:
-            log(f'Invalid JSON file: {json_file}')
+            self.log(f'Invalid JSON file: {json_file}')
         return False
 
     def _find_plugins(self) -> list:
@@ -131,7 +156,7 @@ class PluginsTool(tk.Toplevel):
         """
         folders_to_skip = ['Binaries', 'Build', 'DerivedDataCache', 'Intermediate', 'Saved', 'ThirdParty']
         plugin_files = []
-        for root, dirs, files in os.walk(self.conf['plugins_folder']):
+        for root, dirs, files in os.walk(self.config.get('plugins_folder')):
             if any(folder in os.path.basename(root) for folder in folders_to_skip):
                 continue  # Skip folders that are not plugins
             for file in files:
@@ -185,31 +210,19 @@ class PluginsTool(tk.Toplevel):
         """
         self.destroy()
 
-    def save_configuration(self):
+    def log(self, message: str) -> None:
         """
-        Save the configuration values to a configuration file.
+        Log a message to the console.
+        :param message: The message to log.
         """
-        config = configparser.ConfigParser()
-        config['Paths'] = self.conf
-
-        with open(self.config_file, 'w') as file:
-            config.write(file)
-
-    def load_configuration(self):
-        """
-        Load the configuration values from a configuration file.
-        """
-        config = configparser.ConfigParser()
-        config.read(self.config_file)
-
-        if 'Paths' in config:
-            self.conf = dict(config['Paths'])
+        print(f'[{self.__class__.__name__}] {message}')
+        self.error_list.append(message)
 
     def fix_build_id(self) -> None:
         """
         Update plugin files in the specified engine_folder and plugins_folder.
         """
-        if self.conf['engine_folder'] == '' or self.conf['plugins_folder'] == '':
+        if self.config.get('engine_folder') == '' or self.config.get('plugins_folder') == '':
             messagebox.showerror('Error', 'Engine Path or Plugins Directory not specified.')
             return
         build_id = self._extract_build_id()
@@ -218,9 +231,14 @@ class PluginsTool(tk.Toplevel):
             messagebox.showinfo('Command Result', 'Plugin files updated successfully.')
         else:
             messagebox.showerror('Error', 'Failed to extract Custom Engine Build ID from the specified file.')
-        self.save_configuration()
+        self.config.save()
+        if len(self.error_list) > 0:
+            self.result += '\n###########\nErrors\n###########\n'
+            self.result += '\n'.join(self.error_list)
+        else:
+            self.result += '\n###########\nNo Errors\n###########\n'
         try:
             self.display_callback(self.result)
         except AttributeError:
-            log('No display callback specified.')
+            self.log('No display callback specified.')
         self.close_window()

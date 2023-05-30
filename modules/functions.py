@@ -1,3 +1,7 @@
+# coding=utf-8
+"""
+Global  functions 
+"""
 from tkinter import filedialog
 
 
@@ -21,12 +25,3 @@ def make_modal(tk_root, tk_child):
     tk_child.grab_set()
     tk_child.focus_set()
     tk_child.wait_window()
-
-
-def log(msg: str) -> None:
-    """
-    Log a message to the console.
-    :param msg: The message to log.
-    :return:
-    """
-    print(msg)

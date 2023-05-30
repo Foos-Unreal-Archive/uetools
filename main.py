@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from modules.functions import make_modal
-from modules.PluginVersionFixerClass import PluginsTool
+from modules.PluginVersionFixerClass import PluginsBuildIdFixer
 
 
 class UETools(tk.Tk):
@@ -96,7 +96,7 @@ class UETools(tk.Tk):
         """
         Open the Update Plugin Files window.
         """
-        toplevel = PluginsTool(self, display_callback=self.display)
+        toplevel = PluginsBuildIdFixer(self, display_callback=self.display)
         make_modal(tk_root=self, tk_child=toplevel)
 
     def close_app(self) -> None:
