@@ -35,6 +35,7 @@ class PluginsBuildIdFixer(tk.Toplevel):
         self.result = ''
         self.display_callback = display_callback
         self.error_list = []
+
         self.title('Update Plugins')
         self.resizable(False, False)
         self.geometry(f'{self.width}x{self.height}')
