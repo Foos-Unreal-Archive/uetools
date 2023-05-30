@@ -1,21 +1,26 @@
+# coding=utf-8
 import os
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 
-from ttkwidgets import CheckboxTreeview, AutoHideScrollbar
+# https://ttkwidgets.readthedocs.io/en/sphinx_doc/ttkwidgets
+import ttkwidgets as ttkw
 
+# next import adds a hook to allow the -tooltips options to be added to tk widgets.
+# it's not correctly detected by pycharm, but it works.
+# noinspection PyUnresolvedReferences
 from ttkwidgets import tooltips
 
 
 class FolderDeleterApp:
 
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Folder Deleter App")
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Folder Deleter App")
 
         # Folder selection frame
-        self.folder_frame = ttk.Frame(root)
+        self.folder_frame = ttk.Frame(master)
         self.folder_frame.pack(padx=10, pady=10)
 
         self.folder_label = ttk.Label(self.folder_frame, text="Folder Path:")
@@ -29,18 +34,21 @@ class FolderDeleterApp:
         self.load_button.pack(side="left", padx=5)
 
         # Folder list frame
-        self.folder_list_frame = ttk.Frame(root)
+        self.folder_list_frame = ttk.Frame(master)
         self.folder_list_frame.pack(padx=10, pady=10)
-        self.folder_tree = CheckboxTreeview(self.folder_list_frame, selectmode="extended", columns="Folder")
+        self.folder_tree = ttkw.CheckboxTreeview(self.folder_list_frame, selectmode="extended", columns="Folder")
         self.folder_tree.heading("#0", text="Select")
         self.folder_tree.heading("Folder", text="Subfolder")
-        scrollbar = AutoHideScrollbar(self.folder_list_frame, command=self.folder_tree.yview)
+        scrollbar = ttkw.AutoHideScrollbar(self.folder_list_frame, command=self.folder_tree.yview)
         self.folder_tree.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side='right', fill='y')
         self.folder_tree.pack(side='left', fill='both', expand=True)
 
         # Delete button
-        self.delete_button = ttk.Button(root, text="Delete Selected", command=self.delete_folders, tooltip="This button delete the selected folders.")
+        # noinspection PyArgumentList
+        self.delete_button = ttk.Button(
+            master, text="Delete Selected", command=self.delete_folders, tooltip="This button delete the selected folders."
+        )
         self.delete_button.pack(pady=10)
 
     def load_folders(self):
@@ -79,11 +87,6 @@ class FolderDeleterApp:
                     messagebox.showerror("Error", str(e))
 
 
-# Create the main window
-root = tk.Tk()
-
-# Create an instance of the FolderDeleterApp
-app = FolderDeleterApp(root)
-
-# Run the application
-root.mainloop()
+main = tk.Tk()
+app = FolderDeleterApp(main)
+main.mainloop()
